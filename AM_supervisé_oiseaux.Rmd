@@ -1,0 +1,88 @@
+---
+title: "02_Racicot"
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Télécherger tidyverse et les données
+```{r load_packages_tidyverse, message=FALSE, include=FALSE}
+library(tidyverse)
+library(forcats)
+#install.packages("caret", dependencies = c("Depends", "Suggests"))
+install.packages("gower") #Package manquant dans caret
+install.packages("ModelMetrics") #Package manquant dans caret
+library(caret)
+```
+
+```{r}
+oiseaux <- readr::read_csv2("DataS1_Egg_shape_by_species_v2.csv")
+```
+```{r}
+glimpse(oiseaux)
+```
+
+```{r}
+oiseaux <- oiseaux[complete.cases(oiseaux),] # removing NA's from the dataset
+oiseaux <-select(oiseaux, Order, Asymmetry, Ellipticity) # create a subtract of dataset with columns of interest 
+head(oiseaux) # Head marche pas?
+```
+
+```{r}
+oiseaux %>%
+  ggplot(aes(x=Asymmetry, y=Ellipticity, colour=Order))+
+  geom_point()
+```
+
+```{r}
+oiseau_1 <- oiseaux[which(oiseaux$Order == 'CHARADRIIFORMES'),]
+oiseau_1 <- oiseau_1[sample(1:nrow(oiseau_1), 15,
+   replace=FALSE),]
+#view(oiseau_1)
+```
+```{r}
+oiseau_2 <- oiseaux[which(oiseaux$Order == 'CORACIIFORMES'),]
+oiseau_2 <- oiseau_2[sample(1:nrow(oiseau_2), 15,
+   replace=FALSE),]
+#view(oiseau_2)
+```
+```{r}
+oiseaux_data <-rbind(oiseau_1,oiseau_2)
+#view(oiseaux_data)
+```
+```{r}
+oiseaux_data %>%
+  ggplot(aes(x=Asymmetry, y=Ellipticity, colour=Order))+
+  geom_point()
+```
+
+```{r}
+oiseaux_order <- oiseaux_data %>% 
+  select(Order) %>% 
+  mutate_if(is.character, as.factor)%>%
+  unlist()
+head(oiseaux_order)
+```
+
+
+```{r message=TRUE, warning=TRUE}
+oiseaux_train <- oiseaux_data%>%
+  select(Asymmetry, Ellipticity)
+```
+
+```{r}
+k <- data.frame(k = 3)
+model_knn <- train(x = data.frame(oiseaux_train), y = oiseaux_order, method='knn', tuneGrid = k)
+```
+```{r}
+new_obs <- data.frame(Asymmetry = 0.3, Ellipticity = 0.4)
+predict(object = model_knn, new_obs)
+```
+
+
+
+
