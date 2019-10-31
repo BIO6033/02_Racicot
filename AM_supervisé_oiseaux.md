@@ -77,20 +77,37 @@ Sélectionner 15 données de deux ordres et les combiner pour créer un dataset 
 
 ```r
 oiseau_1 <- oiseaux[which(oiseaux$Order == 'CHARADRIIFORMES'),] # Selecting one order
-oiseau_1 <- oiseau_1[sample(1:nrow(oiseau_1), 15, #Selecting 15 random rows
+nrow(oiseau_1)
+```
+
+```
+## [1] 154
+```
+
+```r
+oiseau_1_train <- oiseau_1[sample(1:nrow(oiseau_1), 15, #Selecting 15 random rows
    replace=FALSE),]
 #view(oiseau_1)
 ```
 
 ```r
-oiseau_2 <- oiseaux[which(oiseaux$Order == 'CORACIIFORMES'),] # Selecting one order
-oiseau_2 <- oiseau_2[sample(1:nrow(oiseau_2), 15, #Selecting 15 random rows
-   replace=FALSE),]
-#view(oiseau_2)
+oiseau_2 <- oiseaux[which(oiseaux$Order == 'CORACIIFORMES'),] # Selecting one order, essayer passeriformes?
+nrow(oiseau_2)
+```
+
+```
+## [1] 19
 ```
 
 ```r
-oiseaux_data <-rbind(oiseau_1,oiseau_2) # Making a dataset with both orders
+oiseau_2_train <- oiseau_2[sample(1:nrow(oiseau_2), 15, #Selecting 15 random rows
+   replace=FALSE),]
+#view(oiseau_2_test)
+```
+
+
+```r
+oiseaux_data <-rbind(oiseau_1_train,oiseau_2_train) # Making a dataset with both orders
 #view(oiseaux_data)
 ```
 
@@ -122,12 +139,13 @@ head(oiseaux_order)
 ## Levels: CHARADRIIFORMES CORACIIFORMES
 ```
 
-Sélection des données à tester 
+Sélection des données pour entraîner le modèle 
 
 ```r
 oiseaux_train <- oiseaux_data%>%
   select(Asymmetry, Ellipticity) # Selecting the data to train the model 
 ```
+
 
 Entrainement du modèle
 
@@ -135,12 +153,31 @@ Entrainement du modèle
 # Making the Knn model
 k <- data.frame(k = 5) 
 model_knn <- train(x = data.frame(oiseaux_train), y = oiseaux_order, method='knn', tuneGrid = k)
+print(model_knn)
+```
+
+```
+## k-Nearest Neighbors 
+## 
+## 30 samples
+##  2 predictor
+##  2 classes: 'CHARADRIIFORMES', 'CORACIIFORMES' 
+## 
+## No pre-processing
+## Resampling: Bootstrapped (25 reps) 
+## Summary of sample sizes: 30, 30, 30, 30, 30, 30, ... 
+## Resampling results:
+## 
+##   Accuracy   Kappa    
+##   0.8875229  0.7446348
+## 
+## Tuning parameter 'k' was held constant at a value of 5
 ```
 
 Test du modèle avec une obervation fictive
 
 ```r
-new_obs <- data.frame(Asymmetry = 0.3, Ellipticity = 0.4) # Fabricating a new observation
+new_obs <- data.frame(Asymmetry = 0.4, Ellipticity = 0.3) # Fabricating a new observation
 predict(object = model_knn, new_obs) # Testing the model
 ```
 
@@ -178,7 +215,7 @@ Visualisation des données par rapport à ceux d'entraînement
 
 ```r
 #Pour visualiser les données testées par rapport aux données de l'entraînement
-#Ne marche pas pour l'instant, oiseaux_2_test n'affiche que 2 points et on ne peut pas vraiment changer la couleur de test sans affecter trained
+#Ne marche pas pour l'instant, oiseaux_2_test n'affiche que 2 points -> oiseau_2 n'a pas assez de rangées, a changer au prochain test
 ggplot() +
       # Test
       geom_point(data=oiseau_1_test, aes(x=Asymmetry, y=Ellipticity)) +
@@ -199,9 +236,9 @@ results
 
 ```
 ##  [1] CHARADRIIFORMES CHARADRIIFORMES CHARADRIIFORMES CHARADRIIFORMES
-##  [5] CHARADRIIFORMES CHARADRIIFORMES CHARADRIIFORMES CORACIIFORMES  
+##  [5] CHARADRIIFORMES CHARADRIIFORMES CHARADRIIFORMES CHARADRIIFORMES
 ##  [9] CHARADRIIFORMES CHARADRIIFORMES CORACIIFORMES   CORACIIFORMES  
-## [13] CORACIIFORMES   CORACIIFORMES   CORACIIFORMES   CORACIIFORMES  
+## [13] CHARADRIIFORMES CORACIIFORMES   CORACIIFORMES   CORACIIFORMES  
 ## [17] CORACIIFORMES   CORACIIFORMES   CORACIIFORMES   CORACIIFORMES  
 ## Levels: CHARADRIIFORMES CORACIIFORMES
 ```
@@ -211,28 +248,164 @@ oiseaux_data_test$Results = results
 #view(oiseaux_data_test)
 ```
 
-On peut voir une erreur à la ligne 13, où le Knn dicte qu'il devrait être un oeuf de CHARADRIIFORMES alors qu'il est un oeuf de CORACIIFORMES.
 
 
-Tentative de normaliser les données
+Visualisation de la distribution des prédictions entre les deux ordres
 
 ```r
-oiseaux_data_scaled <-oiseaux_data %>%
-  select(Asymmetry, Ellipticity) %>%
-  scale(center = TRUE)
-head(oiseaux_data_scaled)
+new_asym <- seq(from = min(oiseaux_train$Asymmetry), to = max(oiseaux_train$Asymmetry), length.out = 250)
+new_ellip <- seq(from = min(oiseaux_train$Ellipticity), to = max(oiseaux_train$Ellipticity), length.out = 250)
+
+grid_data <- expand_grid(Asymmetry = new_asym,
+                         Ellipticity = new_ellip)
+
+grid_data$Order <- predict(object = model_knn, newdata = as.data.frame(grid_data))
+
+oiseaux_data %>% 
+  ggplot(aes(x = Asymmetry, y = Ellipticity, colour=Order, fill=Order)) + 
+  geom_point(data = grid_data, alpha = 0.3) +
+  geom_point(alpha = 1, pch = 21, color = "black") +
+  scale_color_brewer(type = "qual") + 
+  scale_fill_brewer(type = "qual")
+```
+
+![](AM_supervisé_oiseaux_files/figure-html/unnamed-chunk-17-1.png)<!-- -->
+
+
+
+```r
+order_test <-oiseaux_data_test$Order
+order_test_factor<-factor(order_test)
+
+confusionMatrix(results,order_test_factor)
 ```
 
 ```
-##      Asymmetry Ellipticity
-## [1,] 1.1855551   1.4522380
-## [2,] 0.5794169   0.3475388
-## [3,] 0.7925968  -0.2511475
-## [4,] 0.4271456   0.6468819
-## [5,] 0.7297235   0.9847706
-## [6,] 1.1354529   1.1405930
+## Confusion Matrix and Statistics
+## 
+##                  Reference
+## Prediction        CHARADRIIFORMES CORACIIFORMES
+##   CHARADRIIFORMES              10             1
+##   CORACIIFORMES                 0             9
+##                                           
+##                Accuracy : 0.95            
+##                  95% CI : (0.7513, 0.9987)
+##     No Information Rate : 0.5             
+##     P-Value [Acc > NIR] : 2.003e-05       
+##                                           
+##                   Kappa : 0.9             
+##                                           
+##  Mcnemar's Test P-Value : 1               
+##                                           
+##             Sensitivity : 1.0000          
+##             Specificity : 0.9000          
+##          Pos Pred Value : 0.9091          
+##          Neg Pred Value : 1.0000          
+##              Prevalence : 0.5000          
+##          Detection Rate : 0.5000          
+##    Detection Prevalence : 0.5500          
+##       Balanced Accuracy : 0.9500          
+##                                           
+##        'Positive' Class : CHARADRIIFORMES 
+## 
 ```
-Données ne sont plus vraiment manipulables, arrêt de la tentative
+
+
+
+
+## K-fold avec des nouvelles données + données normalisées
+
+
+
+Nouvelles données prises pour un fold plus pratique
+
+```r
+oiseau_3 <- oiseaux[which(oiseaux$Order == 'PASSERIFORMES'),] # A 740 rangées
+oiseaux_pour_cross<-rbind(oiseau_1, oiseau_3)
+
+oiseaux_cross_order<-oiseaux_pour_cross$Order # Pour avoir order de oiseaux_norm
+
+oiseaux_data_cross <- oiseaux_pour_cross %>% # Sélection des deux colonnes à travailler
+  select(Asymmetry, Ellipticity)
+```
+
+Normalisation des données
+
+```r
+normalize <- function(x) {
+return ((x - min(x)) / (max(x) - min(x)))
+} # Fonction pour normaliser les données
+oiseaux_data_cross$Asymmetry<-normalize(oiseaux_data_cross$Asymmetry)
+oiseaux_data_cross$Ellipticity<-normalize(oiseaux_data_cross$Ellipticity)
+oiseaux_norm<-oiseaux_data_cross # Juste pour faire un nom plus clair
+```
+
+
+Visualisation du modèle normalisé
+
+```r
+oiseaux_norm %>%
+  ggplot(aes(x=Asymmetry, y=Ellipticity, colour=oiseaux_cross_order))+ 
+  geom_point()
+```
+
+![](AM_supervisé_oiseaux_files/figure-html/unnamed-chunk-21-1.png)<!-- -->
+
+
+
+```r
+# Define train control for k fold cross validation
+train_control <- trainControl(method="cv", number=5)
+# Fit knn
+k <- data.frame(k = 5) 
+model_kfold <- train(x = data.frame(oiseaux_norm), y = oiseaux_cross_order, trControl =train_control,  method='knn', tuneGrid = k)
+
+print(model_kfold)
+```
+
+```
+## k-Nearest Neighbors 
+## 
+## 894 samples
+##   2 predictor
+##   2 classes: 'CHARADRIIFORMES', 'PASSERIFORMES' 
+## 
+## No pre-processing
+## Resampling: Cross-Validated (5 fold) 
+## Summary of sample sizes: 715, 716, 715, 715, 715 
+## Resampling results:
+## 
+##   Accuracy   Kappa    
+##   0.8959764  0.5946322
+## 
+## Tuning parameter 'k' was held constant at a value of 5
+```
+
+
+Visualisation de la distribution des prédictions entre les deux ordres
+
+```r
+oiseaux_norm_order <- oiseaux_norm
+oiseaux_norm_order$Order <- oiseaux_cross_order
+  
+
+new_asym_norm <- seq(from = min(oiseaux_norm$Asymmetry), to = max(oiseaux_norm$Asymmetry), length.out = 250)
+new_ellip_norm <- seq(from = min(oiseaux_norm$Ellipticity), to = max(oiseaux_norm$Ellipticity), length.out = 250)
+
+grid_data_cross <- expand_grid(Asymmetry = new_asym_norm,
+                         Ellipticity = new_ellip_norm)
+
+grid_data_cross$Order <- predict(object = model_kfold, newdata = as.data.frame(grid_data_cross))
+
+oiseaux_norm_order %>% 
+  ggplot(aes(x = Asymmetry, y = Ellipticity, colour=Order, fill=Order)) + 
+  geom_point(data = grid_data_cross, alpha = 0.3) +
+  geom_point(alpha = 1, pch = 21, color = "black") +
+  scale_color_brewer(type = "qual") + 
+  scale_fill_brewer(type = "qual")
+```
+
+![](AM_supervisé_oiseaux_files/figure-html/unnamed-chunk-23-1.png)<!-- -->
 
 
 
