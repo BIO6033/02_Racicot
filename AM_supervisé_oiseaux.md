@@ -55,8 +55,23 @@ glimpse(oiseaux)
 ## $ `Number of images` <dbl> 1, 27, 7, 13, 15, 1, 191, 1, 7, 2, 5, 130, ...
 ## $ `Number of eggs`   <dbl> 2, 103, 18, 61, 57, 1, 391, 2, 17, 4, 12, 3...
 ```
+
+```r
+#Ajout par Arhama, pour avoir une vue globale des données.
+view(oiseaux)
+```
  
 Nettoyer les données et sélectionner les colonnes d'intérêt
+
+```r
+#Ajout par Arhama,j'ai trouvé cette commande interessante pour compter les cas incomplets
+length(which(!complete.cases(oiseaux)))
+```
+
+```
+## [1] 6
+```
+
 
 ```r
 oiseaux <- oiseaux[complete.cases(oiseaux),]
@@ -71,7 +86,7 @@ oiseaux %>%
   geom_point()
 ```
 
-![](AM_supervisé_oiseaux_files/figure-html/unnamed-chunk-4-1.png)<!-- -->
+![](AM_supervisé_oiseaux_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
 
 Sélectionner 15 données de deux ordres et les combiner pour créer un dataset pour entrainer le Knn
 
@@ -119,7 +134,13 @@ oiseaux_data %>%
   geom_point()
 ```
 
-![](AM_supervisé_oiseaux_files/figure-html/unnamed-chunk-8-1.png)<!-- -->
+![](AM_supervisé_oiseaux_files/figure-html/unnamed-chunk-9-1.png)<!-- -->
+
+#Ajout par Arhama
+On pourrait normaliser les donnees en utilisant la fonction vu en cours
+scale2 <- function(x) (x - mean(x, na.rm = TRUE)) / sd(x, TRUE)
+
+
 
 Création de la liste de labels pour entraîner et tester de Knn
 
@@ -169,7 +190,7 @@ print(model_knn)
 ## Resampling results:
 ## 
 ##   Accuracy   Kappa    
-##   0.8875229  0.7446348
+##   0.9513271  0.8998562
 ## 
 ## Tuning parameter 'k' was held constant at a value of 5
 ```
@@ -187,6 +208,7 @@ predict(object = model_knn, new_obs) # Testing the model
 ```
 
 Sélection d'un dataset pour tester le modèle
+
 
 ```r
 #Making a test dataframe
@@ -210,6 +232,72 @@ oiseaux_order_test <- oiseaux_data %>% # Creating the label list to train and te
 oiseaux_test <-oiseaux_data_test %>%
   select(Asymmetry, Ellipticity)
 ```
+#Ajout par Arhama.
+Une option possible est d'utiliser 'la data partition' en utilisant un set.seed
+
+```r
+set.seed(500) # makes the random selection of rows reproducible
+
+oiseauxA =  filter(oiseaux, Order == 'CHARADRIIFORMES')         #Selection
+
+length(which(!complete.cases(oiseauxA))) #Cas incomplets
+```
+
+```
+## [1] 0
+```
+
+```r
+#View(oiseauxA)
+
+typeof(oiseauxA)
+```
+
+```
+## [1] "list"
+```
+
+```r
+train <- oiseauxA$Order %>%
+          createDataPartition(p = 0.70, list = FALSE)
+#head(train)
+
+oiseauxATrain <- oiseauxA[train,]%>%       #Toute les colonnes de la dataPartition
+                    select("Asymmetry",'Ellipticity')
+oiseauxTest <- oiseauxA[-train,]%>%  #Toute les colonnes NON utilisée par la dataPartition
+                  select("Asymmetry",'Ellipticity')
+#view(oiseauxTest)
+
+oiseauxLabels2 <- oiseauxA[train,]$Order    #Le groupe a predire
+
+# Ensuite on utilise ses données dans pour la prediction et le test
+# Entrainement du model
+k <- data.frame(k =5)
+model_knn2 <- train(x = data.frame(oiseauxATrain),
+                   y = oiseauxLabels2,
+                   method='knn',
+                   tuneGrid = k)
+```
+
+```
+## Warning in nominalTrainWorkflow(x = x, y = y, wts = weights, info =
+## trainInfo, : There were missing values in resampled performance measures.
+```
+
+```r
+#¨Prediction
+prediction = predict(object = model_knn2, newdata = oiseauxTest)
+```
+#Je ne sais pas ce qu il veut dire par There were missing values in resampled performance measures. On pourrait demander au prof.
+
+Autre commentaire: Possibilite de faire varier le k dans le K fold en utilisant k = a:b comme ci dessous.
+      k <- data.frame(k =3:10)
+      model_knnVal <- train(x = data.frame(insectSizeTrain2),
+                   y = insectSizeLabels2,
+                   method='knn',
+                   tuneGrid = k,
+                   trControl = trainCross)
+                       
 
 Visualisation des données par rapport à ceux d'entraînement
 
@@ -225,7 +313,7 @@ ggplot() +
       geom_point(data=oiseaux_data, aes(x=Asymmetry, y=Ellipticity, colour=Order))
 ```
 
-![](AM_supervisé_oiseaux_files/figure-html/unnamed-chunk-14-1.png)<!-- -->
+![](AM_supervisé_oiseaux_files/figure-html/unnamed-chunk-16-1.png)<!-- -->
 
 Comparaison des résultats avec les labels
 
@@ -236,9 +324,9 @@ results
 
 ```
 ##  [1] CHARADRIIFORMES CHARADRIIFORMES CHARADRIIFORMES CHARADRIIFORMES
-##  [5] CHARADRIIFORMES CHARADRIIFORMES CHARADRIIFORMES CHARADRIIFORMES
+##  [5] CHARADRIIFORMES CHARADRIIFORMES CHARADRIIFORMES CORACIIFORMES  
 ##  [9] CHARADRIIFORMES CHARADRIIFORMES CORACIIFORMES   CORACIIFORMES  
-## [13] CHARADRIIFORMES CORACIIFORMES   CORACIIFORMES   CORACIIFORMES  
+## [13] CORACIIFORMES   CORACIIFORMES   CORACIIFORMES   CHARADRIIFORMES
 ## [17] CORACIIFORMES   CORACIIFORMES   CORACIIFORMES   CORACIIFORMES  
 ## Levels: CHARADRIIFORMES CORACIIFORMES
 ```
@@ -269,7 +357,7 @@ oiseaux_data %>%
   scale_fill_brewer(type = "qual")
 ```
 
-![](AM_supervisé_oiseaux_files/figure-html/unnamed-chunk-17-1.png)<!-- -->
+![](AM_supervisé_oiseaux_files/figure-html/unnamed-chunk-19-1.png)<!-- -->
 
 
 
@@ -285,28 +373,28 @@ confusionMatrix(results,order_test_factor)
 ## 
 ##                  Reference
 ## Prediction        CHARADRIIFORMES CORACIIFORMES
-##   CHARADRIIFORMES              10             1
-##   CORACIIFORMES                 0             9
-##                                           
-##                Accuracy : 0.95            
-##                  95% CI : (0.7513, 0.9987)
-##     No Information Rate : 0.5             
-##     P-Value [Acc > NIR] : 2.003e-05       
-##                                           
-##                   Kappa : 0.9             
-##                                           
-##  Mcnemar's Test P-Value : 1               
-##                                           
-##             Sensitivity : 1.0000          
-##             Specificity : 0.9000          
-##          Pos Pred Value : 0.9091          
-##          Neg Pred Value : 1.0000          
-##              Prevalence : 0.5000          
-##          Detection Rate : 0.5000          
-##    Detection Prevalence : 0.5500          
-##       Balanced Accuracy : 0.9500          
-##                                           
-##        'Positive' Class : CHARADRIIFORMES 
+##   CHARADRIIFORMES               9             1
+##   CORACIIFORMES                 1             9
+##                                          
+##                Accuracy : 0.9            
+##                  95% CI : (0.683, 0.9877)
+##     No Information Rate : 0.5            
+##     P-Value [Acc > NIR] : 0.0002012      
+##                                          
+##                   Kappa : 0.8            
+##                                          
+##  Mcnemar's Test P-Value : 1.0000000      
+##                                          
+##             Sensitivity : 0.90           
+##             Specificity : 0.90           
+##          Pos Pred Value : 0.90           
+##          Neg Pred Value : 0.90           
+##              Prevalence : 0.50           
+##          Detection Rate : 0.45           
+##    Detection Prevalence : 0.50           
+##       Balanced Accuracy : 0.90           
+##                                          
+##        'Positive' Class : CHARADRIIFORMES
 ## 
 ```
 
@@ -349,7 +437,7 @@ oiseaux_norm %>%
   geom_point()
 ```
 
-![](AM_supervisé_oiseaux_files/figure-html/unnamed-chunk-21-1.png)<!-- -->
+![](AM_supervisé_oiseaux_files/figure-html/unnamed-chunk-23-1.png)<!-- -->
 
 
 
@@ -376,7 +464,7 @@ print(model_kfold)
 ## Resampling results:
 ## 
 ##   Accuracy   Kappa    
-##   0.8959764  0.5946322
+##   0.8993346  0.6014236
 ## 
 ## Tuning parameter 'k' was held constant at a value of 5
 ```
@@ -405,7 +493,7 @@ oiseaux_norm_order %>%
   scale_fill_brewer(type = "qual")
 ```
 
-![](AM_supervisé_oiseaux_files/figure-html/unnamed-chunk-23-1.png)<!-- -->
+![](AM_supervisé_oiseaux_files/figure-html/unnamed-chunk-25-1.png)<!-- -->
 
 
 

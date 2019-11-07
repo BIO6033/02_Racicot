@@ -162,13 +162,13 @@ oiseauxTest <- oiseauxA[-train,]%>%  #Toute les colonnes NON utilisée par la da
                   select("Asymmetry",'Ellipticity')
 #view(oiseauxTest)
 
-oiseauxLabels2 <- oiseauxA[train,]$Order    #Le groupe a predire
+oiseauxBLabels <- oiseauxA[train,]$Order    #Le groupe a predire
 
 # Ensuite on utilise ses données dans pour la prediction et le test
 # Entrainement du model
 k <- data.frame(k =5)
 model_knn2 <- train(x = data.frame(oiseauxATrain),
-                   y = oiseauxLabels2,
+                   y = oiseauxBLabels,
                    method='knn',
                    tuneGrid = k)
 
@@ -181,13 +181,64 @@ prediction = predict(object = model_knn2, newdata = oiseauxTest)
 ```
 #Je ne sais pas ce qu il veut dire par There were missing values in resampled performance measures. On pourrait demander au prof.
 
-Autre commentaire: Possibilite de faire varier le k dans le K fold en utilisant k = a:b comme ci dessous.
-      k <- data.frame(k =3:10)
-      model_knnVal <- train(x = data.frame(insectSizeTrain2),
-                   y = insectSizeLabels2,
+##Plus de groupe dans la prediction
+
+```{r}
+set.seed(500) # makes the random selection of rows reproducible
+
+oiseauxB =  filter(oiseaux, Order == 'ACCIPITRIFORMES' | Order == 'ANSERIFORMES')         #Selection
+
+length(which(!complete.cases(oiseauxB))) #Cas incomplets
+            
+View(oiseauxB)
+
+#typeof(oiseauxB)
+trainB <- oiseauxB$Order %>%
+          createDataPartition(p = 0.70, list = FALSE)
+#head(train)
+
+oiseauxBTrain <- oiseauxB[trainB,]%>%       #Toute les colonnes de la dataPartition
+                    select("Asymmetry",'Ellipticity')
+oiseauxBTest <- oiseauxB[-trainB,]%>%  #Toute les colonnes NON utilisée par la dataPartition
+                  select("Asymmetry",'Ellipticity')
+#view(oiseauxTest)
+
+oiseauxBLabels <- oiseauxB[trainB,]$Order    #Le groupe a predire
+
+# Ensuite on utilise ses données dans pour la prediction et le test
+# Entrainement du model
+k <- data.frame(k =5)
+model_knn3 <- train(x = data.frame(oiseauxBTrain),
+                   y = oiseauxBLabels,
+                   method='knn',
+                   tuneGrid = k)
+
+#¨Prediction
+prediction = predict(object = model_knn3, newdata = oiseauxBTest)
+prediction
+
+
+```
+
+
+#Autre commentaire: Possibilite de faire varier le k dans le K fold en utilisant k = a:b comme ci dessous.
+     
+                   
+```{r}
+trainCross = trainControl(method = 'repeatedcv',
+                          number = 10,
+                          repeats = 1,
+                          search='grid')
+k <- data.frame(k =3:15)
+      model_knnVal <- train(x = data.frame(oiseauxBTrain),
+                   y = oiseauxBLabels,
                    method='knn',
                    tuneGrid = k,
                    trControl = trainCross)
+      glimpse(model_knnVal) #k=3 est ok.
+      
+```
+
                        
 
 Visualisation des données par rapport à ceux d'entraînement
