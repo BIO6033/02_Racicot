@@ -28,12 +28,21 @@ oiseaux <- readr::read_csv2("DataS1_Egg_shape_by_species_v2.csv")
 ```
 ```{r}
 glimpse(oiseaux)
+#Ajout par Arhama, pour avoir une vue globale des données.
+view(oiseaux)
+
 ```
  
 Nettoyer les données et sélectionner les colonnes d'intérêt
 ```{r}
+#Ajout par Arhama,j'ai trouvé cette commande interessante pour compter les cas incomplets
+length(which(!complete.cases(oiseaux)))
+```
+
+```{r}
 oiseaux <- oiseaux[complete.cases(oiseaux),]
 oiseaux <-select(oiseaux, Order, Asymmetry, Ellipticity)
+
 ```
 
 Visualiser les données pour choisir deux groupes pour entrainer et tester le Knn
@@ -71,6 +80,12 @@ oiseaux_data %>%
   geom_point()
 ```
 
+#Ajout par Arhama
+On pourrait normaliser les donnees en utilisant la fonction vu en cours
+scale2 <- function(x) (x - mean(x, na.rm = TRUE)) / sd(x, TRUE)
+
+
+
 Création de la liste de labels pour entraîner et tester de Knn
 ```{r}
 oiseaux_order <- oiseaux_data %>% # Creating the label list to train and test the Knn
@@ -102,6 +117,7 @@ predict(object = model_knn, new_obs) # Testing the model
 ```
 
 Sélection d'un dataset pour tester le modèle
+
 ```{r}
 #Making a test dataframe
 oiseau_1_test <- oiseaux[which(oiseaux$Order == 'CHARADRIIFORMES'),] # Selecting one order
@@ -124,6 +140,55 @@ oiseaux_order_test <- oiseaux_data %>% # Creating the label list to train and te
 oiseaux_test <-oiseaux_data_test %>%
   select(Asymmetry, Ellipticity)
 ```
+#Ajout par Arhama.
+Une option possible est d'utiliser 'la data partition' en utilisant un set.seed
+```{r}
+set.seed(500) # makes the random selection of rows reproducible
+
+oiseauxA =  filter(oiseaux, Order == 'CHARADRIIFORMES')         #Selection
+
+length(which(!complete.cases(oiseauxA))) #Cas incomplets
+            
+#View(oiseauxA)
+
+typeof(oiseauxA)
+train <- oiseauxA$Order %>%
+          createDataPartition(p = 0.70, list = FALSE)
+#head(train)
+
+oiseauxATrain <- oiseauxA[train,]%>%       #Toute les colonnes de la dataPartition
+                    select("Asymmetry",'Ellipticity')
+oiseauxTest <- oiseauxA[-train,]%>%  #Toute les colonnes NON utilisée par la dataPartition
+                  select("Asymmetry",'Ellipticity')
+#view(oiseauxTest)
+
+oiseauxLabels2 <- oiseauxA[train,]$Order    #Le groupe a predire
+
+# Ensuite on utilise ses données dans pour la prediction et le test
+# Entrainement du model
+k <- data.frame(k =5)
+model_knn2 <- train(x = data.frame(oiseauxATrain),
+                   y = oiseauxLabels2,
+                   method='knn',
+                   tuneGrid = k)
+
+#¨Prediction
+prediction = predict(object = model_knn2, newdata = oiseauxTest)
+
+
+
+
+```
+#Je ne sais pas ce qu il veut dire par There were missing values in resampled performance measures. On pourrait demander au prof.
+
+Autre commentaire: Possibilite de faire varier le k dans le K fold en utilisant k = a:b comme ci dessous.
+      k <- data.frame(k =3:10)
+      model_knnVal <- train(x = data.frame(insectSizeTrain2),
+                   y = insectSizeLabels2,
+                   method='knn',
+                   tuneGrid = k,
+                   trControl = trainCross)
+                       
 
 Visualisation des données par rapport à ceux d'entraînement
 ```{r}
